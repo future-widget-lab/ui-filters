@@ -1,160 +1,426 @@
-# DTS React User Guide
+# @future-widget-lab/ui-filters
 
-Congrats! You just saved yourself hours of work by bootstrapping this project with DTS. Let’s get you oriented with what’s here and how to use it.
+A set of primitives for handling filters through search parameters in React applications. Provides a standardized API to manage, read, and update filters without enforcing a specific routing solution.
 
-> This DTS setup is meant for developing React component libraries (not apps!) that can be published to NPM. If you’re looking to build a React-based app, you should use `create-react-app`, `razzle`, `nextjs`, `gatsby`, or `react-static`.
+## Features
 
-> If you’re new to TypeScript and React, checkout [this handy cheatsheet](https://github.com/sw-yx/react-typescript-cheatsheet/)
+- Standardized serialization and deserialization of filters, ensuring a consistent API for handling filters in search parameters.
+- Type-safe filter operations, leveraging TypeScript for safer and more predictable interactions.
+- React hooks for filter state management, providing an easy way to read, update, and sync filters.
+- Supports multiple filter types, allowing flexibility in handling different kinds of filter values.
+- Router-agnostic, making it compatible with React Router, Next.js, and other solutions.
 
-## Commands
+## Philosophy
 
-DTS scaffolds your new library inside `/src`, and also sets up a [Vite-based](https://vitejs.dev) playground for it inside `/example`.
+Search parameters and filters are essential tools for refining data, but they serve different roles in how users interact with datasets.
 
-The recommended workflow is to run DTS in one terminal:
+Search parameters are a way to represent state in a URL. They allow users to modify what they see on a page without needing to refresh or lose context. Whether it's navigating through a paginated list or applying sorting rules, search parameters help maintain state across interactions and shareable links.
 
-```bash
-npm start # or yarn start
+However, Search parameters, by themselves, are just raw data—they lack structure and meaning beyond their immediate use. Without a clear strategy, they can become inconsistent, redundant, or difficult to manage.
+
+Filters are an abstraction that organize search parameters into a structured system. Instead of treating each parameter as an isolated value, filters define how parameters work together to refine a dataset. Filtering is about narrowing down information based on user-selected criteria, while search is about retrieving relevant results from a broader dataset.
+
+A well-implemented filtering system ensures:
+
+- Consistency: Users interact with filters in predictable ways across different contexts.
+- State Management: Filters act as a single source of truth, making it easier to persist, reset, and modify states.
+- User Experience: Users can intuitively apply multiple filters without confusion or unexpected behavior.
+
+This structured approach ensures that filtering is more accurate than a simple search, as it systematically limits the dataset to what users explicitly need.
+
+Rather than scattering individual filters across multiple search parameters, we advocate centralizing them into a single search parameter. This approach provides:
+
+- Better Scalability: Adding new filters doesn’t require increasing the number of URL parameters.
+- Simplified Parsing and Serialization: A single structured object makes it easier to read and modify filter states.
+- Clearer Intent: Users and developers can more easily understand what is being filtered without dealing with fragmented search logic.
+
+### Comparison of Filtering Approaches
+
+| Approach                                              | Pros                                                                                                                                           | Cons                                                                                                                             | Best Use Cases                                                                                |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| Structured Filtering (Single Search Parameter)        | ✅ Easier to parse and manage as a single object <br> ✅ Scales well with complex filtering needs <br> ✅ Keeps URLs cleaner and more readable | ❌ Harder to manually edit filters in the URL <br> ❌ Requires custom serialization and deserialization logic.                   | When filters need to be persisted as structured state, shared, or modified programmatically.  |
+| Hybrid Approach (Some Filters as Separate Parameters) | ✅ Allows users to manually tweak filters in the URL <br> ✅ Can be useful for integrating with existing APIs that expect individual params    | ❌ Can lead to inconsistent handling of filters <br> ❌ More search parameters to manage <br> ❌ Harder to scale as filters grow | When URL readability and manual editing are key priorities (e.g., public-facing search tools) |
+
+With this in mind, we include pagination within filters because it follows the same principle of structuring search parameters into a single, scalable system. By treating pagination as part of the filtering process, we maintain consistency in state management and avoid search fragmentation—while always considering alternative approaches based on specific use cases.
+
+For further insights on the distinction between search and filtering, check out this article by [Michelle Mac](https://heymichellemac.com/difference-between-search-and-filter).
+
+## Installation
+
+```sh
+npm install @future-widget-lab/ui-filters
 ```
 
-This builds to `/dist` and runs the project in watch mode so any edits you save inside `src` causes a rebuild to `/dist`.
+## Setup
 
-Then run the example inside another:
+Since filters rely on search parameters, we need them to the `FiltersProvider`. This also requires a `commit` function, which defines how updates are applied. Wrap your application as follows:
 
-```bash
-cd example
-npm i # or yarn to install dependencies
-npm start # or yarn start
+```typescript
+import type { FC } from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route, useSearchParams } from 'react-router-dom';
+import { FiltersProvider, type CommitFunction } from '@future-widget-lab/ui-filters/react';
+
+const App: FC = () => {
+	const [searchParams, setSearchParams] = useSearchParams();
+
+	const commit: CommitFunction = (q) => {
+		if (!q) {
+			setSearchParams(new URLSearchParams());
+			return;
+		}
+
+		setSearchParams((previousSearchParams) => {
+			previousSearchParams.set('q', q);
+			return previousSearchParams;
+		});
+	};
+
+	return (
+		<FiltersProvider
+			searchParams={searchParams}
+			commit={commit}
+		>
+			{/* Your components */}
+		</FiltersProvider>
+	);
+};
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+	<BrowserRouter>
+		<Routes>
+			<Route
+				path="/"
+				element={<App />}
+			/>
+		</Routes>
+	</BrowserRouter>
+);
 ```
 
-The default example imports and live reloads whatever is in `/dist`, so if you are seeing an out of date component, make sure DTS is running in watch mode like we recommend above. 
+## Usage
 
-To do a one-off build, use `npm run build` or `yarn build`.
+Here's how you can implement simple pagination with filters:
 
-To run tests, use `npm test` or `yarn test`.
+```typescript
+import type { FC } from 'react';
+import React, { useEffect, useState } from 'react';
+import { useFilter, useFilters } from '@future-widget-lab/ui-filters/react';
 
-## Configuration
+// Note: The filtering logic is intentionally repeated in `TasksList` and `TasksPagination` to demonstrate how filters keep state consistent across multiple components.
 
-Code quality is set up for you with `prettier`, `husky`, and `lint-staged`. Adjust the respective fields in `package.json` accordingly.
+const ITEMS = Array.from({ length: 50 }, (_, i) => ({
+	id: i + 1,
+	name: `Task ${i + 1}`
+}));
 
-### Jest
+const PAGE_SIZE = 10;
 
-Jest tests are set up to run with `npm test` or `yarn test`.
+const TasksSearchSection: FC = () => {
+	const [input, setInput] = useState('');
 
-### Bundle analysis
+	const { setFilterValue, destroyFilters } = useFilters();
 
-Calculates the real cost of your library using [size-limit](https://github.com/ai/size-limit) with `npm run size` and visulize it with `npm run analyze`.
+	const searchTerm = useFilter<string>('search')[0] ?? '';
 
-#### Setup Files
+	const handleSearch = (event: React.FormEvent) => {
+		event.preventDefault();
 
-This is the folder structure we set up for you:
+		setFilterValue({
+			input: [
+				{
+					name: 'page',
+					value: 1
+				},
+				{
+					name: 'search',
+					value: input
+				}
+			]
+		});
+	};
 
-```txt
-/example
-  index.html
-  index.tsx       # test your component here in a demo app
-  package.json
-  tsconfig.json
-/src
-  index.tsx       # EDIT THIS
-/test
-  index.test.tsx  # EDIT THIS
-.gitignore
-package.json
-README.md         # EDIT THIS
-tsconfig.json
+	const handleClearPressed = () => {
+		destroyFilters();
+	};
+
+	const handleSearchChanged = (event: React.ChangeEvent<HTMLInputElement>) => {
+		setInput(event.target.value);
+	};
+
+	useEffect(() => {
+		setInput(searchTerm);
+	}, [searchTerm]);
+
+	return (
+		<header>
+			<form style={{ display: 'flex', flexDirection: 'row', gap: '0.5em' }}>
+				<input
+					value={input}
+					onChange={handleSearchChanged}
+					placeholder="Search..."
+				/>
+				<button
+					type="submit"
+					onClick={handleSearch}
+				>
+					Search
+				</button>
+				<button
+					type="button"
+					onClick={handleClearPressed}
+				>
+					Clear
+				</button>
+			</form>
+		</header>
+	);
+};
+
+const TasksList: FC = () => {
+	const searchTerm = useFilter<string>('search')[0] ?? '';
+	const page = useFilter<number>('page')[0] || 1;
+
+	const filteredTasks = ITEMS.filter((item) => {
+		return item.name.toLowerCase().includes(searchTerm.toLowerCase());
+	});
+
+	const paginatedItems = filteredTasks.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+	return (
+		<ul>
+			{paginatedItems.map((item, index) => (
+				<li key={index}>{item.name}</li>
+			))}
+		</ul>
+	);
+};
+
+const TasksPagination: FC = () => {
+	const { setFilterValue } = useFilters();
+
+	const searchTerm = useFilter<string>('search')[0] ?? '';
+	const page = useFilter<number>('page')[0] || 1;
+
+	const filteredTasks = ITEMS.filter((item) => {
+		return item.name.toLowerCase().includes(searchTerm.toLowerCase());
+	});
+
+	const totalPages = Math.ceil(filteredTasks.length / PAGE_SIZE);
+
+	const handlePreviousPressed = () => {
+		setFilterValue({
+			input: {
+				name: 'page',
+				value: page - 1
+			}
+		});
+	};
+
+	const handleNextPressed = () => {
+		setFilterValue({
+			input: {
+				name: 'page',
+				value: page + 1
+			}
+		});
+	};
+
+	return (
+		<footer style={{ display: 'flex', flexDirection: 'row', gap: '0.5em' }}>
+			<button
+				disabled={page <= 1}
+				onClick={handlePreviousPressed}
+			>
+				Prev
+			</button>
+			{totalPages > 0 ? (
+				<span>
+					{page} / {totalPages}
+				</span>
+			) : (
+				<span>No Results</span>
+			)}
+			<button
+				disabled={page >= totalPages}
+				onClick={handleNextPressed}
+			>
+				Next
+			</button>
+		</footer>
+	);
+};
+
+const TasksIndexPage: FC = () => {
+	return (
+		<section>
+			<TasksSearchSection />
+			<TasksList />
+			<TasksPagination />
+		</section>
+	);
+};
 ```
 
-#### React Testing Library
+## API Reference
 
-We do not set up `react-testing-library` for you yet, we welcome contributions and documentation on this.
+### Providers
 
-### Rollup
+#### `FiltersProvider`
 
-DTS uses [Rollup](https://rollupjs.org) as a bundler and generates multiple rollup configs for various module formats and build settings. See [Optimizations](#optimizations) for details.
+##### Description
 
-### TypeScript
+The react context provider responsible for managing the filters state.
 
-`tsconfig.json` is set up to interpret `dom` and `esnext` types, as well as `react` for `jsx`. Adjust according to your needs.
+##### Options
 
-## Continuous Integration
+| Parameter                           | Type                           | Description                                                                                                                                                                                                   |
+| ----------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `searchParams`                      | `URLSearchParams`              | The search parameters instance that should be used to retrieve the filters from.                                                                                                                              |
+| `searchParamName` _(optional)_      | `string`                       | The search parameter name where the filters collection will be stored. Defaults to `q` if not present.                                                                                                        |
+| `serializer` _(optional)_           | `(filters: Filters) => string` | Helper function used to create a valid search param value given the filters collection. Defaults to `flatted`'s `stringify`. (See [flatted](https://www.npmjs.com/package/flatted))                           |
+| `deserializer` _(optional)_         | `(value: string) => Filters`   | Helper function used to create a valid filters collection out of the search parameter value where filters are stored. Defaults to `flatted`'s `parse`. (See [flatted](https://www.npmjs.com/package/flatted)) |
+| `onBeforeDeserializer` _(optional)_ | `() => void`                   | A hook that fires before the filters collection is deserialized. Consumers can use this to perform side-effects.                                                                                              |
+| `onAfterDeserializer` _(optional)_  | `(filters: Filters) => void`   | A hook that fires after the filters collection is deserialized. Consumers can use this to perform side-effects.                                                                                               |
+| `onDeserializerError` _(optional)_  | `(error: Error) => void`       | A hook that fires when an error occurs during deserialization. Consumers can use this to handle errors or perform side-effects.                                                                               |
+| `commit` _(optional)_               | `CommitFunction`               | Helper function used to apply the changes, similar to a `transaction.commit()` method. If passed at the provider level (Recommended approach), it becomes the default if no explicit `commit` is provided.    |
 
-### GitHub Actions
+### Hooks
 
-Two actions are added by default:
+#### `useFilters() => FiltersContext`
 
-- `main` which installs deps w/ cache, lints, tests, and builds on all pushes against a Node and OS matrix
-- `size` which comments cost comparison of your library on every pull request using [`size-limit`](https://github.com/ai/size-limit)
+##### Description
 
-## Optimizations
+Returns the filters context.
 
-Please see the main `dts` [optimizations docs](https://github.com/weiran-zsd/dts-cli#optimizations). In particular, know that you can take advantage of development-only optimizations:
+#### `useFilter<TData>(name: string) => Array<TData>`
 
-```js
-// ./types/index.d.ts
-declare var __DEV__: boolean;
+##### Description
 
-// inside your code...
-if (__DEV__) {
-  console.log('foo');
-}
-```
+Retrieves the current values of a given filter.
 
-You can also choose to install and use [invariant](https://github.com/weiran-zsd/dts-cli#invariant) and [warning](https://github.com/weiran-zsd/dts-cli#warning) functions.
+##### Options
 
-## Module Formats
+| Name   | Type     | Description                       |
+| ------ | -------- | --------------------------------- |
+| `name` | `string` | The name of the filter to lookup. |
 
-CJS, ESModules, and UMD module formats are supported.
+### Context
 
-The appropriate paths are configured in `package.json` and `dist/index.js` accordingly. Please report if any issues are found.
+### Helpers (`FiltersContext`)
 
-## Deploying the Example Playground
+#### `addFilterValue: (options: AddFilterValueOptions) => void | Promise<void>`
 
-The Playground is just a simple [Vite](https://vitejs.dev) app, you can deploy it anywhere you would normally deploy that. Here are some guidelines for **manually** deploying with the Netlify CLI (`npm i -g netlify-cli`):
+##### Description
 
-```bash
-cd example # if not already in the example folder
-npm run build # builds to dist
-netlify deploy # deploy the dist folder
-```
+Adds a new filter value for the specified filter name while ensuring no duplicates are added.
 
-Alternatively, if you already have a git repo connected, you can set up continuous deployment with Netlify:
+Comparison checks are performed as follows:
 
-```bash
-netlify init
-# build command: yarn build && cd example && yarn && yarn build
-# directory to deploy: example/dist
-# pick yes for netlify.toml
-```
+- Object values are serialized into strings for accurate comparison.
+- Primitives values (strings, numbers, etc.) are compared directly without serialization.
 
-## Named Exports
+##### Options
 
-Per Palmer Group guidelines, [always use named exports.](https://github.com/palmerhq/typescript#exports) Code split inside your React app instead of your React library.
+| Name                          | Type                                  | Description                                                                                                |
+| ----------------------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `input`                       | `FilterInput` \| `Array<FilterInput>` | The new filter value(s) to add.                                                                            |
+| `onBeforeAdd` _(optional)_    | `(input: FilterInput) => void`        | A hook that fires before the value is added. Consumers can use this to perform validation or side-effects. |
+| `onAfterAdd` _(optional)_     | `(input: FilterInput) => void`        | A hook that fires after the value is added. Consumers can use this to perform side-effects.                |
+| `onBeforeCommit` _(optional)_ | `VoidFunction`                        | A hook that fires before committing changes.                                                               |
+| `onAfterCommit` _(optional)_  | `VoidFunction`                        | A hook that fires after committing changes.                                                                |
 
-## Including Styles
+#### `removeFilterValue: (options: RemoveFilterValueOptions) => void | Promise<void>`
 
-There are many ways to ship styles, including with CSS-in-JS. DTS has no opinion on this, configure how you like.
+##### Description
 
-For vanilla CSS, you can include it at the root directory and add it to the `files` section in your `package.json`, so that it can be imported separately by your users and run through their bundler's loader.
+Removes one or more filter values from the specified filter name.
 
-## Publishing to NPM
+Comparison checks are performed as follows:
 
-We recommend using [np](https://github.com/sindresorhus/np).
+- Object values are serialized into strings for accurate comparison.
+- Primitives values (strings, numbers, etc.) are compared directly without serialization.
 
-## Usage with Lerna
+##### Options
 
-When creating a new package with DTS within a project set up with Lerna, you might encounter a `Cannot resolve dependency` error when trying to run the `example` project. To fix that you will need to make changes to the `package.json` file _inside the `example` directory_.
+| Name                          | Type                                | Description                                                                            |
+| ----------------------------- | ----------------------------------- | -------------------------------------------------------------------------------------- |
+| `input`                       | `FilterInput \| Array<FilterInput>` | The filter value(s) to remove.                                                         |
+| `commit` _(optional)_         | `CommitFunction`                    | Optional function to sync state syncing the URL with the current state of the filters. |
+| `onBeforeCommit` _(optional)_ | `VoidFunction`                      | A hook that fires before committing changes.                                           |
+| `onAfterCommit` _(optional)_  | `VoidFunction`                      | A hook that fires after committing changes.                                            |
 
-The problem is that due to the nature of how dependencies are installed in Lerna projects, the aliases in the example project's `package.json` might not point to the right place, as those dependencies might have been installed in the root of your Lerna project.
+#### `setFilterValue: (options: SetFilterValueOptions) => Promise<void>`
 
-Change the `alias` to point to where those packages are actually installed. This depends on the directory structure of your Lerna project, so the actual path might be different from the diff below.
+##### Description
 
-```diff
-   "alias": {
--    "react": "../node_modules/react",
--    "react-dom": "../node_modules/react-dom"
-+    "react": "../../../node_modules/react",
-+    "react-dom": "../../../node_modules/react-dom"
-   },
-```
+Sets (Adds or removes) the value(s) of a given filter.
 
-An alternative to fixing this problem would be to remove aliases altogether and define the dependencies referenced as aliases as dev dependencies instead. [However, that might cause other problems.](https://github.com/formium/tsdx/issues/64)
+- If `value` is `null`, `undefined`, or an empty array, the filter is removed.
+- If `value` is a single item, it replaces the existing filter values.
+- If `value` is an array, all existing filter values are cleared before adding the new ones.
+
+This ensures that each filter is updated in a structured way:
+
+1. Existing filter values are first removed using `removeFilterValue`.
+2. New filter values are then added using `addFilterValue`.
+3. If no values remain, `removeFilter` is used to delete the filter entirely.
+
+Comparison checks are performed as follows:
+
+- Object values are serialized into strings for accurate comparison.
+- Primitives values (strings, numbers, etc.) are compared directly without serialization.
+
+##### Options
+
+| Name                          | Type                                      | Description                                                                            |
+| ----------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| `input`                       | `AnyFilterInput \| Array<AnyFilterInput>` | The filter value(s) to set.                                                            |
+| `commit` _(optional)_         | `CommitFunction`                          | Optional function to sync state syncing the URL with the current state of the filters. |
+| `onBeforeCommit` _(optional)_ | `VoidFunction`                            | A hook that fires before committing changes.                                           |
+| `onAfterCommit` _(optional)_  | `VoidFunction`                            | A hook that fires after committing changes.                                            |
+
+#### `destroyFilter: (options: DestroyFilterOptions) => void | Promise<void>`
+
+##### Description
+
+Removes a filter and its associated values from the filters collection.
+
+##### Options
+
+| Name                          | Type             | Description                                                                            |
+| ----------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `name`                        | `string`         | The name of the filter that will be removed.                                           |
+| `commit` _(optional)_         | `CommitFunction` | Optional function to sync state syncing the URL with the current state of the filters. |
+| `onBeforeCommit` _(optional)_ | `VoidFunction`   | A hook that fires before committing changes.                                           |
+| `onAfterCommit` _(optional)_  | `VoidFunction`   | A hook that fires after committing changes.                                            |
+
+#### `destroyFilters: (options?: DestroyFiltersOptions) => void | Promise<void>`
+
+##### Description
+
+Removes all the filters collection.
+
+##### Options
+
+| Name                          | Type             | Description                                                                            |
+| ----------------------------- | ---------------- | -------------------------------------------------------------------------------------- |
+| `commit` _(optional)_         | `CommitFunction` | Optional function to sync state syncing the URL with the current state of the filters. |
+| `onBeforeCommit` _(optional)_ | `VoidFunction`   | A hook that fires before committing changes.                                           |
+| `onAfterCommit` _(optional)_  | `VoidFunction`   | A hook that fires after committing changes.                                            |
+
+#### `getFilterValues: <TData>(name: string) => Array<TData>`
+
+##### Description
+
+Retrieves the current values of a given filter.
+
+##### Options
+
+| Name   | Type     | Description                      |
+| ------ | -------- | -------------------------------- |
+| `name` | `string` | The name of the filter to lookup |
+
+## License
+
+MIT

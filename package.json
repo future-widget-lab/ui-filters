@@ -1,7 +1,7 @@
 {
   "name": "@future-widget-lab/ui-filters",
   "version": "0.1.0",
-  "description": "A set of primitives to perform filtering through search parameters in React-based UIs.",
+  "description": "A set of primitives for handling filters through search parameters in React applications.",
   "license": "MIT",
   "author": "Carlos Lobo",
   "main": "dist/index.js",
@@ -66,15 +66,21 @@
     "@size-limit/preset-small-lib": "^11.2.0",
     "@tsconfig/recommended": "^1.0.8",
     "@tsconfig/vite-react": "^3.4.0",
-    "@types/react": "^19.0.10",
-    "@types/react-dom": "^19.0.4",
+    "@types/jest": "^29.5.14",
+    "@types/react-dom": "^18.3.1",
+    "@types/react": "^18.2.64",
     "dts-cli": "^2.0.5",
     "husky": "^9.1.7",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "react-dom": "^18.3.0",
+    "react": "^18.3.0",
     "size-limit": "^11.2.0",
     "tslib": "^2.8.1",
-    "typescript": "^5.8.2"
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@future-widget-lab/react-context-provider": "^0.1.4",
+    "@umijs/use-params": "^1.0.9",
+    "flatted": "^3.3.3"
   },
   "keywords": [
     "react",
