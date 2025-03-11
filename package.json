@@ -1,6 +1,6 @@
 {
   "name": "@future-widget-lab/ui-filters",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A set of primitives for handling filters through search parameters in React applications.",
   "license": "MIT",
   "author": "Carlos Lobo",
@@ -79,7 +79,6 @@
   },
   "dependencies": {
     "@future-widget-lab/react-context-provider": "^0.1.4",
-    "@umijs/use-params": "^1.0.9",
     "flatted": "^3.3.3"
   },
   "keywords": [
@@ -88,8 +87,8 @@
     "filters",
     "filtering",
     "react-hooks",
-    "search-params",
-    "query-params",
+    "search-parameters",
+    "query-parameters",
     "url-filters",
     "url-parameters",
     "query-filters",

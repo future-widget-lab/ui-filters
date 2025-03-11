@@ -8,9 +8,6 @@ dependencies:
   '@future-widget-lab/react-context-provider':
     specifier: ^0.1.4
     version: 0.1.4(react@18.3.1)
-  '@umijs/use-params':
-    specifier: ^1.0.9
-    version: 1.0.9(react@18.3.1)
   flatted:
     specifier: ^3.3.3
     version: 3.3.3
@@ -2363,14 +2360,6 @@ packages:
       '@typescript-eslint/types': 5.62.0
       eslint-visitor-keys: 3.4.3
     dev: true
-
-  /@umijs/use-params@1.0.9(react@18.3.1):
-    resolution: {integrity: sha512-QlN0RJSBVQBwLRNxbxjQ5qzqYIGn+K7USppMoIOVlf7fxXHsnQZ2bEsa6Pm74bt6DVQxpUE8HqvdStn6Y9FV1w==}
-    peerDependencies:
-      react: '*'
-    dependencies:
-      react: 18.3.1
-    dev: false
 
   /@ungap/structured-clone@1.3.0:
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
