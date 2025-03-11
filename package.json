@@ -1,6 +1,6 @@
 {
   "name": "@future-widget-lab/ui-filters",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A set of primitives for handling filters through search parameters in React applications.",
   "license": "MIT",
   "author": "Carlos Lobo",
